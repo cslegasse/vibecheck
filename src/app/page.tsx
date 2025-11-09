@@ -4,9 +4,27 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Shield, TrendingUp, Brain, Zap, Target, Award, CheckCircle } from "lucide-react";
+import { Shield, TrendingUp, Brain, Zap, Target, Award, CheckCircle, LogIn, UserPlus, LogOut } from "lucide-react";
+import { useSession, authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function HomePage() {
+  const { data: session, isPending, refetch } = useSession();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    const { error } = await authClient.signOut();
+    if (error?.code) {
+      toast.error(error.code);
+    } else {
+      localStorage.removeItem("bearer_token");
+      refetch();
+      toast.success("Signed out successfully");
+      router.push("/");
+    }
+  };
+
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
@@ -50,21 +68,48 @@ export default function HomePage() {
               </span>
             </motion.div>
             <motion.div 
-              className="flex gap-4"
+              className="flex gap-4 items-center"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="ghost" asChild>
-                  <Link href="/donor">Donate</Link>
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button asChild className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700">
-                  <Link href="/ngo">Organization Portal</Link>
-                </Button>
-              </motion.div>
+              {!isPending && session?.user ? (
+                <>
+                  <span className="text-sm text-muted-foreground hidden sm:block">
+                    {session.user.email}
+                  </span>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button variant="ghost" asChild>
+                      <Link href="/donor">Dashboard</Link>
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button variant="outline" onClick={handleSignOut}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign Out
+                    </Button>
+                  </motion.div>
+                </>
+              ) : (
+                <>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button variant="ghost" asChild>
+                      <Link href="/login">
+                        <LogIn className="h-4 w-4 mr-2" />
+                        Login
+                      </Link>
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button asChild className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700">
+                      <Link href="/register">
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Register
+                      </Link>
+                    </Button>
+                  </motion.div>
+                </>
+              )}
             </motion.div>
           </div>
         </div>

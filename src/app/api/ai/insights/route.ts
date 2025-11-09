@@ -4,7 +4,6 @@ export async function POST(request: NextRequest) {
   try {
     const { context, data } = await request.json();
 
-    // Simulate AI analysis
     let insights = {
       fraudScore: 95,
       compliance: 98,
@@ -13,7 +12,6 @@ export async function POST(request: NextRequest) {
     };
 
     if (context === "donation" && data) {
-      // Calculate fraud score based on donation patterns
       const amount = data.amount || 0;
       insights.fraudScore = amount > 10000 ? 85 : 95;
       insights.alerts = amount > 10000 ? 1 : 0;

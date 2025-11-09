@@ -1,7 +1,3 @@
-/**
- * Campaign Management API
- * Manages campaigns with real-time data tracking and AI verification
- */
 
 import { NextRequest, NextResponse } from "next/server";
 import { realTimeDataClient } from "@/lib/smart-contract-client";
@@ -9,26 +5,68 @@ import { realTimeDataClient } from "@/lib/smart-contract-client";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, goalAmount, categories, ngoId } = body;
+    const { name, description, target, categories, geminiInsights } = body;
 
-    if (!title || !goalAmount || !categories || !Array.isArray(categories) || !ngoId) {
+    if (!name || !target || !categories || !Array.isArray(categories)) {
       return NextResponse.json(
         {
           success: false,
-          error: "title, goalAmount, ngoId, and categories array are required",
+          error: "name, target, and categories array are required",
         },
         { status: 400 }
       );
     }
 
     const result = await realTimeDataClient.createCampaign({
-      title,
-      ngoId,
-      goalAmount,
-      categories,
+      title: name,
+      ngoId: "default",
+      goalAmount: target,
+      categories: categories.map(cat => ({
+        name: cat.name,
+        amount: cat.budget || cat.amount, // <-- must be `amount`
+      })),
     });
 
-    return NextResponse.json(result);
+
+    // Sync with MongoDB (includes Gemini insights)
+    try {
+      const token = request.headers.get("authorization")?.replace("Bearer ", "");
+      
+      const mongoResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/mongodb/gemini/sync-campaign`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          campaignName: name,
+          description: description || '',
+          targetAmount: target,
+          categories: categories.map(cat => ({
+            name: cat.name,
+            budget: cat.budget || cat.amount
+          })),
+          geminiInsights: geminiInsights || {
+            successProbability: 75,
+            estimatedDays: 30,
+            riskFactors: [],
+            recommendations: []
+          },
+        }),
+      });
+
+      const mongoData = await mongoResponse.json();
+      
+      return NextResponse.json({
+        ...result,
+        mongoSynced: mongoData.success,
+        mongoCampaignId: mongoData.campaign?.campaignId,
+      });
+    } catch (mongoError) {
+      console.error("MongoDB sync error:", mongoError);
+      // Return success even if MongoDB sync fails
+      return NextResponse.json(result);
+    }
   } catch (error) {
     console.error("Campaign Creation Error:", error);
     return NextResponse.json(

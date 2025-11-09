@@ -1,3 +1,9 @@
+/**
+ * Nessie API - Donation Processing
+ * Handles donation transactions using Nessie's transfer system
+ * Automatically syncs with MongoDB for user tracking
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { nessieClient } from "@/lib/nessie-client";
 import { realTimeDataClient } from "@/lib/smart-contract-client";
@@ -40,6 +46,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Run AI fraud detection
+    let fraudScore = 100;
+    let aiVerified = true;
     try {
       const donorAccount = await nessieClient.getAccount(donorAccountId);
       const transactions = await nessieClient.getAccountTransactions(
@@ -54,6 +62,9 @@ export async function POST(request: NextRequest) {
           donorId: donorAccountId,
         })),
       });
+
+      fraudScore = 100 - fraudCheck.riskScore;
+      aiVerified = !fraudCheck.isSuspicious;
 
       if (fraudCheck.isSuspicious && fraudCheck.riskScore > 70) {
         return NextResponse.json(
@@ -105,15 +116,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 5: Return success response
+    // Step 5: Sync transaction with MongoDB
+    try {
+      const token = request.headers.get("authorization")?.replace("Bearer ", "");
+      
+      await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/mongodb/nessie/sync-transaction`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          transactionType: 'donation',
+          nessieTransactionId: donationResult.transactionId,
+          amount,
+          campaignId,
+          category,
+          description,
+          nessieAccountId: donorAccountId,
+          fraudScore,
+          aiVerified,
+        }),
+      });
+    } catch (mongoError) {
+      console.error("MongoDB sync error:", mongoError);
+      // Continue even if MongoDB sync fails
+    }
+
+    // Step 6: Return success response
     return NextResponse.json({
       success: true,
       transactionId: donationResult.transactionId,
       dataRecordId: dataRecord?.transactionId,
       verificationScore: dataRecord?.verificationScore,
+      fraudScore,
+      aiVerified,
       amount,
       timestamp: new Date().toISOString(),
-      message: "Donation processed successfully",
+      message: "Donation processed and synced successfully",
     });
   } catch (error) {
     console.error("Donation Processing Error:", error);

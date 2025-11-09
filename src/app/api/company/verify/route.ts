@@ -1,8 +1,3 @@
-/**
- * Company/NGO Verification API
- * Provides real-time company data and transparency information
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { realTimeDataClient } from "@/lib/smart-contract-client";
 
@@ -18,7 +13,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get company data with real-time verification
     const companyData = await realTimeDataClient.getCompanyData(ngoId);
 
     if (!companyData) {
