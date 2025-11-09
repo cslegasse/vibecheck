@@ -1,5 +1,5 @@
 import React from "react";
-import { XIcon, HandHeartIcon, BuildingIcon } from "../components/Icons";
+import { XIcon, HandHeartIcon, BuildingIcon } from "./Icons";
 
 type DialogProps = {
   open: boolean;

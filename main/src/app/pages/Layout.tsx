@@ -8,7 +8,7 @@ import {
   Typography,
   Button,
 } from '@mui/material';
-import { HandHeartIcon } from '../components/Icons'; // Assuming this is a custom SVG component
+import { HandHeartIcon } from '../../components/Icons'; // Assuming this is a custom SVG component
 import { motion } from 'framer-motion';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {

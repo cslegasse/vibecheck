@@ -1,9 +1,9 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
-import Donator from "./pages/Donator";
-import NgoNewCampaign from "./pages/NgoNewCampaign";
-import Layout from "./pages/Layout";
+import Home from "./app/pages/Home";
+import Donator from "./app/pages/Donator";
+import NgoNewCampaign from "./app/pages/NgoNewCampaign";
+import Layout from "./app/pages/Layout";
 
 const App: React.FC = () => {
   return (
