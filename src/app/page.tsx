@@ -4,14 +4,47 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Shield, TrendingUp, Brain, Zap, Target, Award, CheckCircle, LogIn, UserPlus, LogOut } from "lucide-react";
+import { Shield, TrendingUp, Brain, Zap, CheckCircle, LogIn, UserPlus, LogOut } from "lucide-react";
 import { useSession, authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useEffect, useState } from "react";
 
 export default function HomePage() {
   const { data: session, isPending, refetch } = useSession();
   const router = useRouter();
+  const [userType, setUserType] = useState<"donor" | "ngo" | null>(null);
+
+  // Fetch user type from MongoDB
+  useEffect(() => {
+    const fetchUserType = async () => {
+      if (!session?.user) {
+        setUserType(null);
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("bearer_token");
+        const response = await fetch("/api/mongodb/user/sync", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUserType(data.user?.userType || null);
+        }
+      } catch (error) {
+        console.error("Error fetching user type:", error);
+      }
+    };
+
+    if (session?.user) {
+      fetchUserType();
+    }
+  }, [session]);
 
   const handleSignOut = async () => {
     const { error } = await authClient.signOut();
@@ -20,8 +53,17 @@ export default function HomePage() {
     } else {
       localStorage.removeItem("bearer_token");
       refetch();
+      setUserType(null);
       toast.success("Signed out successfully");
       router.push("/");
+    }
+  };
+
+  const handleDashboardClick = () => {
+    if (userType === "ngo") {
+      router.push("/ngo");
+    } else {
+      router.push("/donor");
     }
   };
 
@@ -44,12 +86,7 @@ export default function HomePage() {
       <nav className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <motion.div 
-              className="flex items-center gap-2"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
+            <Link href="/" className="flex items-center gap-2 cursor-pointer">
               <motion.div
                 animate={{ 
                   rotate: [0, 5, -5, 0],
@@ -66,7 +103,7 @@ export default function HomePage() {
               <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                 Contrust
               </span>
-            </motion.div>
+            </Link>
             <motion.div 
               className="flex gap-4 items-center"
               initial={{ opacity: 0, x: 20 }}
@@ -79,8 +116,8 @@ export default function HomePage() {
                     {session.user.email}
                   </span>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button variant="ghost" asChild>
-                      <Link href="/donor">Dashboard</Link>
+                    <Button variant="ghost" onClick={handleDashboardClick}>
+                      Dashboard
                     </Button>
                   </motion.div>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>

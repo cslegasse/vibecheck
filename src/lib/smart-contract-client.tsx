@@ -1,8 +1,3 @@
-/**
- * Real-Time Data Tracking Client
- * Tracks donations with AI verification for complete transparency
- * Uses real-time data instead of blockchain for company information tracking
- */
 
 export interface Campaign {
   id: number;

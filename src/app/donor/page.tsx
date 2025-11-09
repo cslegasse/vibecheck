@@ -16,12 +16,16 @@ import {
   Activity,
   Brain,
   Target,
-  Award
+  Award,
+  Building2,
+  History
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { AIAgent } from "@/components/ai-agents";
 import { Progress } from "@/components/ui/Progress";
+import { useSession } from "@/lib/auth-client";
+import { Badge } from "@/components/ui/Badge";
 
 interface Category {
   name: string;
@@ -34,12 +38,26 @@ interface Category {
   complianceRate?: number;
 }
 
+interface DonationHistory {
+  transactionId: string;
+  campaignId: string;
+  campaignName: string;
+  amount: number;
+  category: string;
+  timestamp: Date;
+  fraudScore?: number;
+  aiVerified: boolean;
+}
+
 export default function DonorPage() {
+  const { data: session } = useSession();
   const [amount, setAmount] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [campaignData, setCampaignData] = useState<any>(null);
+  const [donationHistory, setDonationHistory] = useState<DonationHistory[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [realTimeMetrics, setRealTimeMetrics] = useState({
     totalDonations: 0,
     averageFraudScore: 95,
@@ -49,7 +67,8 @@ export default function DonorPage() {
 
   useEffect(() => {
     loadCampaignData();
-    const interval = setInterval(updateRealTimeMetrics, 5000); // Update every 5s
+    loadDonationHistory();
+    const interval = setInterval(updateRealTimeMetrics, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -61,10 +80,9 @@ export default function DonorPage() {
         setCategories(data.campaign.categories || []);
         setCampaignData(data.campaign);
         
-        // Calculate fraud scores for categories
         const updatedCategories = data.campaign.categories.map((cat: Category) => ({
           ...cat,
-          fraudScore: Math.floor(Math.random() * 10) + 90, // 90-100%
+          fraudScore: Math.floor(Math.random() * 10) + 90,
           complianceRate: cat.isCompliant ? Math.floor(Math.random() * 5) + 95 : 70,
         }));
         setCategories(updatedCategories);
@@ -74,8 +92,35 @@ export default function DonorPage() {
     }
   };
 
+  const loadDonationHistory = async () => {
+    try {
+      const token = localStorage.getItem("bearer_token");
+      if (!token) return;
+
+      const response = await fetch("/api/mongodb/user/sync", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.user?.donations) {
+          const formattedHistory = data.user.donations.map((d: any) => ({
+            ...d,
+            campaignName: campaignData?.title || "Emergency Relief Campaign",
+            timestamp: new Date(d.timestamp),
+          }));
+          setDonationHistory(formattedHistory);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load donation history:", error);
+    }
+  };
+
   const updateRealTimeMetrics = async () => {
-    // Simulate real-time metric updates
     setRealTimeMetrics(prev => ({
       totalDonations: prev.totalDonations + Math.floor(Math.random() * 3),
       averageFraudScore: Math.min(95 + Math.floor(Math.random() * 5), 100),
@@ -91,23 +136,37 @@ export default function DonorPage() {
     }
 
     const donationAmount = parseFloat(amount);
+    
+    // Prevent negative or zero donations
     if (isNaN(donationAmount) || donationAmount <= 0) {
-      toast.error("Please enter a valid amount");
+      toast.error("Please enter a valid positive amount");
+      return;
+    }
+
+    // Additional validation for reasonable donation amounts
+    if (donationAmount > 1000000) {
+      toast.error("Donation amount exceeds maximum limit");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
+      const token = localStorage.getItem("bearer_token");
+      const donorId = session?.user?.id || "DONOR-" + Date.now();
+
       // Record donation with AI verification
       const response = await fetch("/api/donations/record", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify({
           campaignId: 1,
           amount: donationAmount,
           category: selectedCategory,
-          donorId: "DONOR-" + Date.now(),
+          donorId,
         }),
       });
 
@@ -126,6 +185,7 @@ export default function DonorPage() {
       setAmount("");
       setSelectedCategory("");
       loadCampaignData();
+      loadDonationHistory();
       updateRealTimeMetrics();
     } catch (error) {
       toast.error("Failed to process donation. Please try again.");
@@ -159,19 +219,133 @@ export default function DonorPage() {
                   Back
                 </Button>
               </Link>
-              <div className="flex items-center gap-2">
+              <Link href="/" className="flex items-center gap-2 cursor-pointer">
                 <Shield className="h-6 w-6 text-emerald-600" />
                 <span className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                   Contrust
                 </span>
-              </div>
+              </Link>
             </div>
-            <h1 className="text-lg font-semibold">Smart Contract Donations</h1>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHistory(!showHistory)}
+                className="flex items-center gap-2"
+              >
+                <History className="h-4 w-4" />
+                <span className="hidden sm:inline">My Donations</span>
+              </Button>
+              <Badge variant="outline" className="flex items-center gap-2">
+                <Building2 className="h-3 w-3" />
+                <span className="text-xs">Donor Dashboard</span>
+              </Badge>
+            </div>
           </div>
         </div>
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Donation History Section */}
+        <AnimatePresence>
+          {showHistory && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-8"
+            >
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <History className="h-5 w-5 text-emerald-600" />
+                    <h2 className="text-xl font-bold">My Donation History</h2>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setShowHistory(false)}>
+                    Close
+                  </Button>
+                </div>
+                
+                {donationHistory.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No donations yet. Start making a difference today!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {donationHistory.map((donation, index) => (
+                      <motion.div
+                        key={donation.transactionId}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="p-4 rounded-lg border-2 border-emerald-100 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-900/20"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="default" className="bg-emerald-600">
+                                {donation.category}
+                              </Badge>
+                              {donation.aiVerified && (
+                                <Badge variant="outline" className="flex items-center gap-1">
+                                  <Shield className="h-3 w-3" />
+                                  Verified
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-1">
+                              Campaign: {donation.campaignName}
+                            </p>
+                            <p className="text-xs text-muted-foreground font-mono">
+                              {donation.transactionId}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {new Date(donation.timestamp).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-emerald-600">
+                              ${donation.amount.toLocaleString()}
+                            </p>
+                            {donation.fraudScore && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Trust: {donation.fraudScore}%
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="mt-4 pt-4 border-t">
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        {donationHistory.length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Total Donations</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-teal-600">
+                        ${donationHistory.reduce((sum, d) => sum + d.amount, 0).toLocaleString()}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Total Amount</p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Real-Time Metrics Dashboard */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -242,8 +416,13 @@ export default function DonorPage() {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       className="pl-10"
+                      min="0.01"
+                      step="0.01"
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Minimum: $0.01 • Maximum: $1,000,000
+                  </p>
                 </div>
 
                 <div>
@@ -456,7 +635,7 @@ export default function DonorPage() {
       </div>
 
       {/* AI Agent */}
-      <AIAgent context="donation" data={{ categories, campaignData, metrics: realTimeMetrics }} />
+      <AIAgent context="donation" data={{ categories, campaignData, metrics: realTimeMetrics, donationHistory }} />
     </div>
   );
 }
