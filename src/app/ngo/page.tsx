@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
-import { Shield, Plus, ArrowLeft, Brain, TrendingUp, BarChart3, Activity, Target, Award } from "lucide-react";
-import AnalyticsDashboard from "@/components/ui/AnalyticsDashboard";
-import AINotificationSystem, { useAINotifications } from "@/components//ui/AINotificationSystem";
+import { Shield, Plus, ArrowLeft, Brain, TrendingUp, BarChart3, Activity, Target, Award, Building2, Home } from "lucide-react";
+import AnalyticsDashboard from "@/components//ui/AnalyticsDashboard";
+import AINotificationSystem, { useAINotifications } from "@/components/ui/AINotificationSystem";
 import { AIAgent } from "@/components/ai-agents";
 
 interface Category {
@@ -80,7 +80,7 @@ export default function NGOPage() {
       <nav className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 dark:bg-gray-900/70 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2 cursor-pointer">
               <motion.div
                 animate={{ 
                   rotate: [0, 5, -5, 0],
@@ -98,13 +98,17 @@ export default function NGOPage() {
                 Contrust
               </span>
             </Link>
-            <div className="flex gap-4">
-              <Button variant="ghost" asChild>
-                <Link href="/"><ArrowLeft className="h-4 w-4 mr-2" />Back</Link>
-              </Button>
-              <Button asChild className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700">
-                <Link href="/donor">Donate</Link>
-              </Button>
+            <div className="flex gap-4 items-center">
+              <Badge variant="outline" className="flex items-center gap-2 bg-teal-50 dark:bg-teal-900/20">
+                <Building2 className="h-3 w-3" />
+                <span className="text-xs font-semibold">Organization Dashboard</span>
+              </Badge>
+              <Link href="/">
+                <Button variant="ghost" size="sm">
+                  <Home className="h-4 w-4 mr-2" />
+                  Home
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -281,7 +285,6 @@ export default function NGOPage() {
         }}
       />
       
-      {/* AI Agent */}
       <AIAgent context="campaign" data={{ campaigns }} />
     </div>
   );

@@ -14,6 +14,7 @@ export default function HomePage() {
   const { data: session, isPending, refetch } = useSession();
   const router = useRouter();
   const [userType, setUserType] = useState<"donor" | "ngo" | null>(null);
+  const [isLoadingUserType, setIsLoadingUserType] = useState(false);
 
   // Fetch user type from MongoDB
   useEffect(() => {
@@ -23,6 +24,7 @@ export default function HomePage() {
         return;
       }
 
+      setIsLoadingUserType(true);
       try {
         const token = localStorage.getItem("bearer_token");
         const response = await fetch("/api/mongodb/user/sync", {
@@ -34,17 +36,20 @@ export default function HomePage() {
 
         if (response.ok) {
           const data = await response.json();
-          setUserType(data.user?.userType || null);
+          const fetchedUserType = data.user?.userType || null;
+          setUserType(fetchedUserType);
         }
       } catch (error) {
         console.error("Error fetching user type:", error);
+      } finally {
+        setIsLoadingUserType(false);
       }
     };
 
-    if (session?.user) {
+    if (session?.user && !isPending) {
       fetchUserType();
     }
-  }, [session]);
+  }, [session, isPending]);
 
   const handleSignOut = async () => {
     const { error } = await authClient.signOut();
@@ -60,10 +65,14 @@ export default function HomePage() {
   };
 
   const handleDashboardClick = () => {
+    // Route based on user type from MongoDB
     if (userType === "ngo") {
       router.push("/ngo");
-    } else {
+    } else if (userType === "donor") {
       router.push("/donor");
+    } else {
+      // If user type not determined yet, show message
+      toast.error("Please complete your profile setup first");
     }
   };
 
@@ -116,8 +125,12 @@ export default function HomePage() {
                     {session.user.email}
                   </span>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button variant="ghost" onClick={handleDashboardClick}>
-                      Dashboard
+                    <Button 
+                      variant="ghost" 
+                      onClick={handleDashboardClick}
+                      disabled={isLoadingUserType}
+                    >
+                      {isLoadingUserType ? "Loading..." : "Dashboard"}
                     </Button>
                   </motion.div>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>

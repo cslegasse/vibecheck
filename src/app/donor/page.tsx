@@ -18,7 +18,8 @@ import {
   Target,
   Award,
   Building2,
-  History
+  History,
+  Home
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -212,20 +213,24 @@ export default function DonorPage() {
       <nav className="sticky top-0 z-40 backdrop-blur-lg bg-white/70 dark:bg-gray-900/70 border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <Link href="/">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-              </Link>
-              <Link href="/" className="flex items-center gap-2 cursor-pointer">
-                <Shield className="h-6 w-6 text-emerald-600" />
-                <span className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  Contrust
-                </span>
-              </Link>
-            </div>
+            <Link href="/" className="flex items-center gap-2 cursor-pointer">
+              <motion.div
+                animate={{ 
+                  rotate: [0, 5, -5, 0],
+                  scale: [1, 1.05, 1, 1.05, 1]
+                }}
+                transition={{ 
+                  duration: 3,
+                  repeat: Infinity,
+                  repeatDelay: 2
+                }}
+              >
+                <Shield className="h-8 w-8 text-emerald-600" />
+              </motion.div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                Contrust
+              </span>
+            </Link>
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -236,10 +241,16 @@ export default function DonorPage() {
                 <History className="h-4 w-4" />
                 <span className="hidden sm:inline">My Donations</span>
               </Button>
-              <Badge variant="outline" className="flex items-center gap-2">
+              <Badge variant="outline" className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20">
                 <Building2 className="h-3 w-3" />
-                <span className="text-xs">Donor Dashboard</span>
+                <span className="text-xs font-semibold">Donor Dashboard</span>
               </Badge>
+              <Link href="/">
+                <Button variant="ghost" size="sm">
+                  <Home className="h-4 w-4 mr-2" />
+                  Home
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -634,7 +645,6 @@ export default function DonorPage() {
         </div>
       </div>
 
-      {/* AI Agent */}
       <AIAgent context="donation" data={{ categories, campaignData, metrics: realTimeMetrics, donationHistory }} />
     </div>
   );
