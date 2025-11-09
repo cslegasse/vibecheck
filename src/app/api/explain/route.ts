@@ -52,11 +52,20 @@ Return ONLY the explanation text (no JSON, no formatting, just the plain text ex
     console.error("Error in AI explanation:", error);
     
     // Return a fallback explanation if AI fails
-    const { traceData } = await request.json();
-    const progress = Math.round((traceData.totalRaised / traceData.totalBudget) * 100);
+    const body = await request.json().catch(() => ({}));
+    const { traceData } = body;
     
-    return NextResponse.json({
-      explanation: `This campaign has reached ${progress}% of its funding goal, with $${traceData.totalRaised.toLocaleString()} raised so far. Every transaction is recorded on the blockchain for complete transparency. The funds are being allocated across ${traceData.categories.length} key categories, with regular updates on spending to ensure your donation makes a real impact. You can track exactly how your contribution is being used to make a difference.`
-    });
+    if (traceData) {
+      const progress = Math.round((traceData.totalRaised / traceData.totalBudget) * 100);
+      
+      return NextResponse.json({
+        explanation: `This campaign has reached ${progress}% of its funding goal, with $${traceData.totalRaised.toLocaleString()} raised so far. Every transaction is recorded on the blockchain for complete transparency. The funds are being allocated across ${traceData.categories.length} key categories, with regular updates on spending to ensure your donation makes a real impact. You can track exactly how your contribution is being used to make a difference.`
+      });
+    }
+    
+    return NextResponse.json(
+      { error: "Explanation generation failed. Please try again." },
+      { status: 500 }
+    );
   }
 }
