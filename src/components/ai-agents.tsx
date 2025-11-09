@@ -163,7 +163,7 @@ export function AIAgent({ context = "general", data }: AIAgentProps) {
         setTimeout(() => {
           const greetingMessage: Message = {
             role: "assistant",
-            content: `👋 **Hello! I'm your Contrust AI Assistant**\n\nI've just performed a comprehensive autonomous analysis of your ${context === "donation" ? "donation activity" : "campaign performance"}.\n\n✨ **${result.keyInsight || "I'm here to help you understand your data, detect fraud, and optimize your impact."}"**\n\n🎯 **My Autonomous Capabilities:**\n${(result.autonomousCapabilities || []).slice(0, 4).map((cap: string) => `• ${cap}`).join('\n')}\n\nI'll continue monitoring in the background and provide proactive insights. What would you like to explore?`,
+            content: `Hello! I'm your Contrust AI Assistant\n\nI've just performed a comprehensive autonomous analysis of your ${context === "donation" ? "donation activity" : "campaign performance"}.\n\n ${result.keyInsight || "I'm here to help you understand your data, detect fraud, and optimize your impact."}\n\nWhat would you like to explore?`,
             timestamp: new Date(),
           };
           setMessages(prev => [...prev, greetingMessage]);
@@ -175,7 +175,7 @@ export function AIAgent({ context = "general", data }: AIAgentProps) {
               if (highSeverityAnomalies.length > 0) {
                 const anomalyMessage: Message = {
                   role: "system",
-                  content: `⚠️ **${highSeverityAnomalies.length} Anomaly Alert${highSeverityAnomalies.length > 1 ? 's' : ''}**\n\n${highSeverityAnomalies.map((a: any) => `**${a.type}** (${a.severity})\n${a.description}\n💡 *Recommendation: ${a.recommendation}*`).join('\n\n')}`,
+                  content: ` ${highSeverityAnomalies.length} Anomaly Alert${highSeverityAnomalies.length > 1 ? 's' : ''}\n\n${highSeverityAnomalies.map((a: any) => `${a.type} (${a.severity})\n${a.description}\n💡 Recommendation: ${a.recommendation}`).join('\n\n')}`,
                   timestamp: new Date(),
                 };
                 setMessages(prev => [...prev, anomalyMessage]);
@@ -222,7 +222,7 @@ export function AIAgent({ context = "general", data }: AIAgentProps) {
         if (result.insight) {
           const insightMessage: Message = {
             role: "system",
-            content: `💡 **Autonomous Insight**\n\n${result.insight}`,
+            content: `💡 Autonomous Insight\n\n${result.insight}`,
             timestamp: new Date(),
           };
           setMessages(prev => [...prev, insightMessage]);
@@ -404,13 +404,13 @@ export function AIAgent({ context = "general", data }: AIAgentProps) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="fixed bottom-28 right-6 z-50 w-96 max-h-[600px]"
+            className="fixed bottom-28 right-6 z-50 w-96 max-h-[80vh] flex flex-col"
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <Card className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-2 border-emerald-200 dark:border-emerald-800 shadow-2xl overflow-hidden flex flex-col">
+          <Card className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-2 border-emerald-200 dark:border-emerald-800 shadow-2xl overflow-hidden flex flex-col h-full">
               {/* Header */}
               <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -500,15 +500,15 @@ export function AIAgent({ context = "general", data }: AIAgentProps) {
               )}
 
               {/* Messages */}
-              <div className="flex-1 h-80 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {messages.length === 0 && !isLoading && !isAnalyzing && (
-                  <div className="text-center text-muted-foreground py-8">
+                  <div className="text-center text-muted-foreground py-4">
                     <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
                     <p className="text-sm mb-2 font-medium">Advanced AI Assistant</p>
                     <p className="text-xs mb-4">Autonomous fraud detection, predictive analytics & real-time insights</p>
                     
                     {/* Quick actions */}
-                    <div className="grid grid-cols-2 gap-2 mt-4">
+                    <div className="grid grid-cols-2 gap-2 mt-4 mb-4">
                       {quickActions.map((action, index) => (
                         <button
                           key={index}
@@ -520,9 +520,43 @@ export function AIAgent({ context = "general", data }: AIAgentProps) {
                         </button>
                       ))}
                     </div>
+                    
+                    {/* Example Commands */}
+                    <div className="mt-4 p-3 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/10 dark:to-teal-900/10 rounded-lg border border-emerald-200 dark:border-emerald-800 text-left">
+                      <p className="text-xs font-semibold mb-2 flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+                        <Lightbulb className="h-3 w-3" />
+                        Example Commands
+                      </p>
+                      <ul className="text-xs space-y-1.5 text-gray-700 dark:text-gray-300">
+                        <li className="flex items-start gap-1">
+                          <span className="text-emerald-600">•</span>
+                          <span>What is my fraud risk score?</span>
+                        </li>
+                        <li className="flex items-start gap-1">
+                          <span className="text-emerald-600">•</span>
+                          <span>Show spending trends for this month</span>
+                        </li>
+                        <li className="flex items-start gap-1">
+                          <span className="text-emerald-600">•</span>
+                          <span>Predict my donation goal completion</span>
+                        </li>
+                        <li className="flex items-start gap-1">
+                          <span className="text-emerald-600">•</span>
+                          <span>Analyze anomalies in transactions</span>
+                        </li>
+                        <li className="flex items-start gap-1">
+                          <span className="text-emerald-600">•</span>
+                          <span>Give me optimization recommendations</span>
+                        </li>
+                        <li className="flex items-start gap-1">
+                          <span className="text-emerald-600">•</span>
+                          <span>Compare spending across categories</span>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                 )}
-                
+
                 {messages.map((message, index) => (
                   <motion.div
                     key={index}
@@ -545,8 +579,9 @@ export function AIAgent({ context = "general", data }: AIAgentProps) {
                           <span className="text-xs font-semibold text-purple-600">Autonomous Insight</span>
                         </div>
                       )}
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      
+                    <div className={`max-w-[85%] break-words rounded-lg p-3 ...`}>
+                      {message.content}
+                    </div>                      
                       {/* Metadata display */}
                       {message.metadata?.suggestions && message.metadata.suggestions.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
@@ -638,7 +673,7 @@ export function AIAgent({ context = "general", data }: AIAgentProps) {
                   </p>
                   {aiInsights?.autonomousCapabilities && aiInsights.autonomousCapabilities.length > 0 && (
                     <button
-                      onClick={() => toast.info(`Active: ${aiInsights.autonomousCapabilities.join(', ')}`)}
+                      onClick={() => toast.info(`Active: ${aiInsights.autonomousCapabilities?.join(', ') || 'None'}`)}
                       className="text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
                     >
                       <Bell className="h-3 w-3" />

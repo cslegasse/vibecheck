@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+
 export async function POST(request: NextRequest) {
   try {
     const { message, context, data, conversationHistory, userId } = await request.json();
@@ -26,13 +27,42 @@ export async function POST(request: NextRequest) {
         confidence = intentAnalysis.confidence;
 
         // Build sophisticated context-aware prompt
-        const prompt = buildAdvancedChatPrompt(
-          message, 
-          context, 
-          data, 
-          conversationHistory,
-          intent
-        );
+        function buildAdvancedChatPrompt(
+            message: string, 
+            context: string, 
+            data: any, 
+            conversationHistory: any[],
+            intent: string
+          ): string {
+            const recentHistory = conversationHistory.slice(-5)
+              .map((msg: any) => `${msg.role}: ${msg.content}`)
+              .join('\n') || "No previous conversation";
+
+            const relevantData = extractRelevantData(data, context, intent);
+
+            return `
+          You are Contrust AI, an assistant specialized in fraud detection, spending analysis, campaign tracking, and recommendations.
+
+          **Context:** ${context}
+          **Intent:** ${intent}
+          **User ID:** ${data?.userId || "anonymous"}
+          **Recent Conversation:** ${recentHistory}
+          **Relevant Data:** ${JSON.stringify(relevantData, null, 2)}
+
+          User Question: "${message}"
+
+          Guidelines:
+          - Be concise, helpful, and conversational.
+          - Use numbers and metrics from data when possible.
+          - Suggest 1-3 clear next actions.
+          - Highlight insights if relevant.
+          - Maintain security awareness; never expose secrets.
+          - If intent is fraud_check, provide confidence scores.
+
+          Respond naturally, include actionable suggestions or insights at the end if relevant.
+          `;
+          }
+
         
         const geminiResponse = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
@@ -202,77 +232,75 @@ function buildAdvancedChatPrompt(
     `${msg.role}: ${msg.content}`
   ).join('\n');
 
-  // Extract relevant data based on context and intent
   const relevantData = extractRelevantData(data, context, intent);
 
-  const systemContext = `You are Contrust AI Assistant, an advanced AI agent specialized in:
+  const systemContext = `You are Contrust AI Assistant, an AI agent specialized in:
 
-**Core Capabilities:**
-1. 🛡️ Fraud Detection & Security Analysis
+Core Capabilities:
+1. Fraud Detection and Security Analysis
    - Real-time transaction monitoring
    - Pattern recognition for suspicious activities
    - Risk assessment with confidence scores
    - Anomaly detection using historical baselines
 
-2. 📊 Data Analysis & Insights
+2. Data Analysis and Insights
    - Campaign performance metrics
    - Donation pattern analysis
    - Spending optimization recommendations
    - Predictive analytics for fundraising trends
 
-3. 🎯 Goal Tracking & Progress Monitoring
+3. Goal Tracking and Progress Monitoring
    - Real-time campaign progress updates
    - Category-wise budget utilization
    - Donor engagement metrics
    - Impact measurement and reporting
 
-4. 💡 Autonomous Recommendations
+4. Autonomous Recommendations
    - Proactive optimization suggestions
    - Best practice guidance
    - Risk mitigation strategies
    - Growth opportunity identification
 
-5. 🤝 Smart Contract Enforcement
+5. Smart Contract Enforcement
    - Budget compliance verification
    - Category spending validation
    - Transaction authorization
    - Transparency reporting
 
-**Current Context:** ${context}
-**Detected Intent:** ${intent}
-**User ID:** ${data?.userId || "anonymous"}
+Current Context: ${context}
+Detected Intent: ${intent}
+User ID: ${data?.userId || "anonymous"}
 
-**Available Data:**
+Available Data:
 ${JSON.stringify(relevantData, null, 2)}
 
-**Recent Conversation:**
+Recent Conversation:
 ${recentHistory || "No previous conversation"}
 
-**User Question:** "${message}"
+User Question: "${message}"
 
-**Response Guidelines:**
-1. Be conversational, helpful, and empathetic
-2. Use specific numbers and metrics from the data when available
-3. Provide actionable recommendations, not just observations
-4. If analyzing fraud risk, always include confidence levels
-5. Format responses with emojis and markdown for readability
-6. If you detect patterns or anomalies, explain their significance
-7. Offer follow-up actions the user can take
-8. Reference previous conversation context when relevant
-9. If data is insufficient, acknowledge limitations and suggest alternatives
-10. Maintain security awareness - never expose sensitive credentials
+Response Guidelines:
+1. Be conversational, helpful, and clear
+2. Use specific numbers and metrics when available
+3. Provide actionable recommendations
+4. Include confidence levels for fraud analysis
+5. Explain patterns or anomalies
+6. Suggest follow-up actions
+7. Reference previous conversation context when relevant
+8. Acknowledge data limitations if needed
+9. Maintain security awareness
 
-**Special Instructions for Intent: ${intent}**
+Special Instructions for Intent: ${intent}
 ${getIntentSpecificInstructions(intent)}
 
-**Output Format:**
-Provide your response naturally. If you have suggestions, end with:
+Output Format:
+Respond naturally. If you have suggestions, end with:
 
 SUGGESTIONS:
 - [actionable suggestion 1]
 - [actionable suggestion 2]
 
-If you notice patterns worth highlighting:
+If patterns or insights are present:
 INSIGHTS:
 - [data-driven insight 1]
 - [data-driven insight 2]
@@ -281,6 +309,7 @@ Now respond to the user's question:`;
 
   return systemContext;
 }
+
 
 function getIntentSpecificInstructions(intent: string): string {
   const instructions: Record<string, string> = {
@@ -444,7 +473,6 @@ function generateIntelligentFallback(
   const lowerMessage = message.toLowerCase();
   const intent = analyzeIntentFallback(lowerMessage);
 
-  // Generate contextual responses based on intent and available data
   if (intent === "fraud_check") {
     return generateFraudCheckResponse(data, context);
   } else if (intent === "spending_analysis") {
@@ -458,13 +486,13 @@ function generateIntelligentFallback(
   }
 
   return {
-    response: `I'm your AI assistant for donation transparency and fraud detection. I can help you with:
+    response: `I am your AI assistant for donation transparency and fraud detection. I can help you with:
 
-🛡️ **Security Analysis** - Check fraud risk and transaction safety
-📊 **Spending Optimization** - Analyze and improve fund allocation
-🎯 **Progress Tracking** - Monitor campaign goals and achievements
-💡 **Smart Recommendations** - Get actionable insights and next steps
-❓ **Explanations** - Understand how smart contracts and AI verification work
+- Security Analysis: Check fraud risk and transaction safety
+- Spending Optimization: Analyze and improve fund allocation
+- Progress Tracking: Monitor campaign goals and achievements
+- Recommendations: Get actionable next steps
+- Explanations: Understand how smart contracts and AI verification work
 
 What would you like to explore?`,
     metadata: {},
@@ -490,37 +518,25 @@ function analyzeIntentFallback(message: string): string {
 function generateFraudCheckResponse(data: any, context: string): any {
   const avgScore = data?.metrics?.averageFraudScore || 95;
   const recentTransactions = data?.donationHistory?.length || 0;
-  
+
   return {
-    response: `🛡️ **Fraud Risk Analysis Complete**
-
-**Security Status:** ✅ Excellent
-**Trust Score:** ${avgScore}% (${recentTransactions} transactions analyzed)
-
-**Key Findings:**
-• All recent transactions passed AI verification
-• No suspicious patterns detected
-• Transaction velocity within normal range
-• Donor behavior patterns are consistent
-
-**What I'm Monitoring:**
-1. Transaction amounts and frequency
-2. Donor identity verification
-3. Category allocation patterns
-4. Historical fraud indicators
-5. Real-time anomaly detection
-
-Your donations are secure and fully verified by Gemini AI! 🔒`,
+    response: `Fraud risk analysis complete.
+Security status: Excellent
+Trust score: ${avgScore}% (${recentTransactions} transactions analyzed)
+All recent transactions passed verification.
+No suspicious patterns detected.
+Monitoring includes transaction amounts, donor verification, category allocation, historical fraud indicators, and anomaly detection.
+Donations are secure and verified.`,
     metadata: {
       fraudScore: avgScore,
       suggestions: [
-        "Enable real-time fraud alerts for instant notifications",
+        "Enable real-time fraud alerts",
         "Review transaction history weekly",
         "Verify recipient organization credentials"
       ],
       insights: [
         `${recentTransactions} transactions analyzed with ${avgScore}% average trust score`,
-        "AI monitoring active 24/7 for pattern detection"
+        "AI monitoring active for pattern detection"
       ]
     },
     intent: "fraud_check"
@@ -530,29 +546,24 @@ Your donations are secure and fully verified by Gemini AI! 🔒`,
 function generateSpendingAnalysisResponse(data: any, context: string): any {
   const categories = data?.categories || [];
   const totalSpent = categories.reduce((sum: number, cat: any) => sum + (parseFloat(cat.spent) || 0), 0);
-  
+
   return {
-    response: `📊 **Spending Analysis Report**
-
-**Overview:**
-• ${categories.length} active spending categories
-• $${totalSpent.toLocaleString()} total spent
-• Compliance rate: ${data?.metrics?.complianceRate || 98}%
-
-**Category Performance:**
+    response: `Spending analysis report.
+Active categories: ${categories.length}
+Total spent: $${totalSpent.toLocaleString()}
+Compliance rate: ${data?.metrics?.complianceRate || 98}%
+Top categories:
 ${categories.slice(0, 3).map((cat: any, i: number) => {
   const spent = parseFloat(cat.spent) || 0;
   const budget = parseFloat(cat.allocated) || 1;
   const pct = Math.round((spent / budget) * 100);
-  return `${i + 1}. **${cat.name}**: $${spent.toLocaleString()} / $${budget.toLocaleString()} (${pct}%)`;
+  return `${i + 1}. ${cat.name}: $${spent.toLocaleString()} / $${budget.toLocaleString()} (${pct}%)`;
 }).join('\n')}
-
-**Optimization Opportunities:**
-I've identified several ways to improve efficiency and impact. Would you like detailed recommendations?`,
+Optimization opportunities are available. Would you like detailed recommendations?`,
     metadata: {
       suggestions: [
         "Reallocate funds from overfunded to high-impact categories",
-        "Set automated alerts at 80% budget threshold",
+        "Set alerts at 80% budget threshold",
         "Review underutilized categories for consolidation"
       ],
       insights: [
@@ -569,33 +580,26 @@ function generateProgressTrackingResponse(data: any, context: string): any {
   const totalRaised = campaigns.reduce((sum: number, c: any) => sum + (c.totalRaised || 0), 0);
   const totalGoal = campaigns.reduce((sum: number, c: any) => sum + (c.totalBudget || 0), 0);
   const progressPct = totalGoal > 0 ? Math.round((totalRaised / totalGoal) * 100) : 0;
-  
+
   return {
-    response: `🎯 **Progress Report**
-
-**Campaign Status:**
-• ${campaigns.length} active campaign(s)
-• $${totalRaised.toLocaleString()} raised of $${totalGoal.toLocaleString()} goal
-• ${progressPct}% complete
-
-**Momentum Analysis:**
-${progressPct >= 75 ? "🚀 Excellent progress! You're on track to exceed your goal." : 
-  progressPct >= 50 ? "📈 Good momentum. Keep up the communication with donors." :
-  progressPct >= 25 ? "⚡ Building traction. Consider boosting visibility." :
-  "🌱 Early stage. Focus on donor acquisition and engagement."}
-
-**Milestones:**
-✅ ${Math.floor(progressPct / 25)} of 4 major milestones completed
-
-Every dollar is tracked and verified with AI-powered smart contracts! 🔐`,
+    response: `Progress report.
+Active campaigns: ${campaigns.length}
+Raised: $${totalRaised.toLocaleString()} of $${totalGoal.toLocaleString()}
+Completion: ${progressPct}%
+Momentum analysis: ${progressPct >= 75 ? "Excellent progress, on track to exceed goals" :
+      progressPct >= 50 ? "Good momentum, maintain donor engagement" :
+      progressPct >= 25 ? "Building traction, consider boosting visibility" :
+      "Early stage, focus on donor acquisition"}
+Milestones: ${Math.floor(progressPct / 25)} of 4 completed
+Every dollar is tracked and verified.`,
     metadata: {
       suggestions: [
-        "Share progress updates to maintain donor engagement",
-        "Highlight completed milestones on campaign page",
-        "Set up milestone celebration notifications"
+        "Share progress updates",
+        "Highlight completed milestones",
+        "Set up milestone notifications"
       ],
       insights: [
-        `Campaign is ${progressPct}% funded with strong compliance`,
+        `Campaign is ${progressPct}% funded`,
         `Average donation size: $${Math.round(totalRaised / Math.max(data?.donationHistory?.length || 1, 1))}`
       ]
     },
@@ -605,36 +609,29 @@ Every dollar is tracked and verified with AI-powered smart contracts! 🔐`,
 
 function generateRecommendationsResponse(data: any, context: string): any {
   return {
-    response: `💡 **Personalized Action Plan**
-
-Based on AI analysis of your data, here are prioritized recommendations:
-
-**🎯 High Impact (Do First):**
-1. **Enable Recurring Donations** - Increase lifetime value by 3x
-2. **Set Budget Alerts** - Get notified at 80% spending thresholds
-3. **Share Progress Updates** - Boost donor retention by 45%
-
-**📊 Optimization (This Week):**
-4. Diversify across high-trust categories (95%+ scores)
-5. Review and consolidate underutilized categories
-6. Enable autonomous AI insights for proactive monitoring
-
-**🚀 Growth (Long-term):**
-7. Build donor community engagement programs
-8. Implement predictive fundraising strategies
-9. Leverage AI-generated campaign optimization tips
-
-**Next Steps:**
-Which area would you like to tackle first? I can provide detailed guidance for any of these recommendations.`,
+    response: `Personalized action plan.
+High impact:
+1. Enable recurring donations
+2. Set budget alerts
+3. Share progress updates
+Optimization:
+4. Diversify across high-trust categories
+5. Review underutilized categories
+6. Enable AI insights for monitoring
+Growth:
+7. Build donor engagement programs
+8. Implement predictive fundraising
+9. Use AI-generated optimization tips
+Which area would you like to tackle first?`,
     metadata: {
       suggestions: [
-        "Start with recurring donations setup (highest ROI)",
-        "Enable real-time monitoring for peace of mind",
-        "Schedule weekly progress reviews"
+        "Start with recurring donations",
+        "Enable real-time monitoring",
+        "Schedule weekly reviews"
       ],
       insights: [
-        "Users who follow these recommendations see 60% better outcomes",
-        "AI-powered insights have helped optimize 1000+ campaigns"
+        "Following these recommendations improves outcomes",
+        "AI-powered insights optimize campaigns"
       ]
     },
     intent: "recommendations"
@@ -644,44 +641,17 @@ Which area would you like to tackle first? I can provide detailed guidance for a
 function generateExplanationResponse(message: string, data: any, context: string): any {
   if (message.toLowerCase().includes("smart contract")) {
     return {
-      response: `🔐 **How Smart Contracts Work on Contrust**
-
-**Think of it like this:** 
-Imagine a transparent piggy bank where everyone can see deposits and withdrawals, AND there's an AI security guard that checks every transaction.
-
-**The Process:**
-
-1. **Contract Creation** 📝
-   - Organization sets spending categories (e.g., 40% food, 35% medical, 25% shelter)
-   - Budget limits are locked into the "contract"
-   - All donors can review these terms before contributing
-
-2. **Enforcement** 🛡️
-   - Every withdrawal is checked against category limits
-   - Gemini AI verifies the reason matches the category
-   - If limits are exceeded, transactions are blocked automatically
-
-3. **Real-Time Tracking** 📊
-   - Updates every 5 seconds
-   - Donors see exactly where money goes
-   - Compliance scores show adherence to terms
-
-4. **AI Verification** 🤖
-   - Fraud detection on every transaction
-   - Pattern analysis for suspicious activity
-   - Confidence scores for trust assessment
-
-**Why It's Better Than Traditional Donations:**
-✅ 100% transparent - see every transaction
-✅ Enforced compliance - no fund misuse
-✅ AI-verified - fraud prevention built-in
-✅ Real-time updates - know your impact immediately
-
-Want to know more about any specific aspect?`,
+      response: `How smart contracts work:
+- Budget categories and limits are set upfront
+- Withdrawals are checked against limits
+- AI verifies transactions and detects anomalies
+- Donors see real-time updates and compliance scores
+Smart contracts increase transparency and reduce fraud.
+Do you want details on any specific part?`,
       metadata: {
         insights: [
-          "Smart contracts reduce fraud by 95% compared to traditional methods",
-          "Real-time transparency increases donor trust by 80%"
+          "Smart contracts reduce fraud compared to traditional methods",
+          "Real-time transparency increases donor trust"
         ]
       },
       intent: "explanation"
@@ -689,15 +659,12 @@ Want to know more about any specific aspect?`,
   }
 
   return {
-    response: `I'd be happy to explain! Could you be more specific about what you'd like to understand?
-
-I can explain:
-• How smart contracts enforce transparency
-• How AI detects fraud in real-time  
-• How category budgets work
-• How the verification process works
-• How spending compliance is calculated
-
+    response: `Please specify what you want explained. I can clarify:
+- How smart contracts enforce transparency
+- How AI detects fraud
+- How category budgets work
+- How verification works
+- How spending compliance is calculated
 What would you like to learn about?`,
     metadata: {},
     intent: "explanation"
